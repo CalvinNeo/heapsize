@@ -34,17 +34,23 @@ pub unsafe fn heap_size_of<T>(ptr: *const T) -> usize {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 unsafe fn heap_size_of_impl(ptr: *const c_void) -> usize {
     // The C prototype is `je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)`. On some
     // platforms `JEMALLOC_USABLE_SIZE_CONST` is `const` and on some it is empty. But in practice
     // this function doesn't modify the contents of the block that `ptr` points to, so we use
     // `*const c_void` here.
-    extern "C" {
-		#[cfg_attr(any(prefixed_jemalloc, target_os = "macos", target_os = "ios", target_os = "android"), link_name = "je_malloc_usable_size")]
-        fn malloc_usable_size(ptr: *const c_void) -> usize;
-    }
+   extern "C" {
+		#[cfg_attr(any(prefixed_jemalloc, target_os = "ios", target_os = "android"), link_name = "je_malloc_usable_size")]
+       fn malloc_usable_size(ptr: *const c_void) -> usize;
+   }
     malloc_usable_size(ptr)
+}
+
+#[cfg(target_os = "macos")]
+unsafe fn heap_size_of_impl(ptr: *const c_void) -> usize {
+    // Neither `je_malloc_usable_size` nor `_rjem_je_malloc_usable_size` has been found.
+    0
 }
 
 #[cfg(target_os = "windows")]
